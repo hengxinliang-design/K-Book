@@ -52,7 +52,7 @@ K-Book 必须保留这些行为，避免破坏现有检索和问答链路。
 因此目录位置记录在现有 `reference` 关联上：
 
 ```text
-source -> reference(folder) -> notebook
+source (in) -> reference(folder) -> notebook (out)
 ```
 
 ### 3.2 文件固有元数据属于 Source
@@ -190,15 +190,15 @@ erDiagram
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `in` | record&lt;notebook&gt; | 是 | 现有知识库目标 |
-| `out` | record&lt;source&gt; | 是 | 现有来源起点 |
+| `in` | record&lt;source&gt; | 是 | 现有来源起点 |
+| `out` | record&lt;notebook&gt; | 是 | 现有知识库目标 |
 | `folder` | option&lt;record&lt;folder&gt;&gt; | 否 | 文件在该知识库中的目录 |
 | `created` | datetime | 是 | 加入知识库时间 |
 | `updated` | datetime | 是 | 目录位置更新时间 |
 
 约束：
 
-- `folder` 必须属于 `in` 指向的知识库。
+- `folder` 必须属于 `out` 指向的知识库。
 - 同一 `source + notebook` 只允许一个有效 `reference`。
 - 移动文件只更新 `reference.folder`，不修改 `source` 或向量。
 
