@@ -23,6 +23,7 @@ from api.routers import (
     embedding_rebuild,
     episode_profiles,
     insights,
+    kbook_upload_config,
     languages,
     models,
     notebooks,
@@ -310,6 +311,9 @@ app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(source_chat.router, prefix="/api", tags=["source-chat"])
 app.include_router(credentials.router, prefix="/api", tags=["credentials"])
 app.include_router(languages.router, prefix="/api", tags=["languages"])
+app.include_router(
+    kbook_upload_config.router, prefix="/api/kbook", tags=["kbook-upload"]
+)
 
 
 @app.get("/")
