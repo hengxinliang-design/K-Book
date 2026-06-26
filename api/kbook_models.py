@@ -243,6 +243,48 @@ class KBookAddExistingSourceResponse(BaseModel):
     already_exists: bool = False
 
 
+class KBookRecordSummary(BaseModel):
+    """Small record summary used in K-Book notebook responses."""
+
+    id: str
+    name: str
+
+
+class KBookNotebookItem(BaseModel):
+    """K-Book notebook list item with business scope metadata."""
+
+    id: str
+    name: str
+    description: str | None = None
+    customer: KBookRecordSummary | None = None
+    project: KBookRecordSummary | None = None
+    ln_versions: list[KBookRecordSummary] = Field(default_factory=list)
+    scope: str | None = None
+    source_count: int = 0
+    created: str | None = None
+    updated: str | None = None
+
+
+class KBookNotebooksResponse(BaseModel):
+    """Paginated K-Book notebook list response."""
+
+    items: list[KBookNotebookItem]
+    total: int
+    limit: int
+    offset: int
+
+
+class KBookNotebookUpdateRequest(BaseModel):
+    """Update K-Book notebook business scope metadata."""
+
+    name: str | None = None
+    description: str | None = None
+    customer_id: str | None = None
+    project_id: str | None = None
+    ln_version_ids: list[str] | None = None
+    scope: str | None = None
+
+
 class KBookSourceTitleUpdateRequest(BaseModel):
     """Update a source display title."""
 

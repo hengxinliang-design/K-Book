@@ -27,6 +27,7 @@ from api.routers import (
     kbook_dictionary,
     kbook_files,
     kbook_folders,
+    kbook_notebooks,
     kbook_source_metadata,
     kbook_upload_config,
     languages,
@@ -325,6 +326,7 @@ app.include_router(
 )
 app.include_router(kbook_folders.router, prefix="/api/kbook", tags=["kbook-folders"])
 app.include_router(kbook_files.router, prefix="/api/kbook", tags=["kbook-files"])
+app.include_router(kbook_notebooks.router, prefix="/api/kbook", tags=["kbook-notebooks"])
 app.include_router(
     kbook_source_metadata.router,
     prefix="/api/kbook",
