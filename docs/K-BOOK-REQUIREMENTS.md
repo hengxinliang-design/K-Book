@@ -245,6 +245,6 @@ K-Book 不提供 Podcast 功能。
 
 1. [知识库、目录、标签、字典、文件元数据和文件版本的领域关系图](K-BOOK-DOMAIN-MODEL.md)。
 2. [第一期数据库迁移设计](K-BOOK-DATABASE-MIGRATION-SPEC.md)。
-3. 上传向导和文件管理页面流程。
+3. [上传向导和文件管理页面流程](K-BOOK-UPLOAD-AND-FILE-MANAGEMENT-FLOW.md)。
 4. 文件替换的事务与回滚流程。
 5. API 契约和验收测试清单。
