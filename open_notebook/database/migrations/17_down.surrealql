@@ -1,0 +1,4 @@
+-- Rollback migration 17: remove K-Book upload batch queue skeleton.
+
+REMOVE TABLE IF EXISTS upload_batch_item;
+REMOVE TABLE IF EXISTS upload_batch;

@@ -331,3 +331,60 @@ class KBookSourceTagsResponse(BaseModel):
     source_id: str
     tag_ids: list[str]
     updated: str | None = None
+
+
+class KBookUploadBatchFileInput(BaseModel):
+    """JSON-testable file descriptor for upload batch prevalidation."""
+
+    filename: str
+    size: int | None = None
+
+
+class KBookUploadBatchItemInput(BaseModel):
+    """Per-file upload batch business metadata."""
+
+    client_file_id: str
+    filename: str
+    title: str
+    folder_id: str | None = None
+    tag_ids: list[str] = Field(default_factory=list)
+    module_id: str | None = None
+    document_type_id: str | None = None
+    business_version: str | None = None
+    status_id: str | None = None
+
+
+class KBookUploadBatchCreateRequest(BaseModel):
+    """JSON-testable upload batch create request."""
+
+    notebook_id: str
+    files: list[KBookUploadBatchFileInput]
+    items: list[KBookUploadBatchItemInput]
+    async_processing: bool = True
+    embed: bool = True
+
+
+class KBookUploadBatchItemResponse(BaseModel):
+    """Upload batch item status response."""
+
+    client_file_id: str
+    filename: str
+    status: str
+    source_id: str | None = None
+    reference_id: str | None = None
+    error: dict | None = None
+
+
+class KBookUploadBatchResponse(BaseModel):
+    """Upload batch status response."""
+
+    batch_id: str
+    status: str
+    total: int
+    accepted: int | None = None
+    rejected: int | None = None
+    queued: int | None = None
+    processing: int | None = None
+    ready: int | None = None
+    failed: int | None = None
+    items: list[KBookUploadBatchItemResponse]

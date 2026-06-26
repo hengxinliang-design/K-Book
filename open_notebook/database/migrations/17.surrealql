@@ -1,0 +1,30 @@
+-- Migration 17: K-Book upload batch queue skeleton.
+-- Stores prevalidated upload batches and per-file queued items.
+
+DEFINE TABLE IF NOT EXISTS upload_batch SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS notebook ON TABLE upload_batch TYPE record<notebook>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE upload_batch TYPE string DEFAULT 'queued' ASSERT $value IN ['queued', 'processing', 'completed', 'completed_with_errors', 'failed'];
+DEFINE FIELD IF NOT EXISTS total ON TABLE upload_batch TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS accepted ON TABLE upload_batch TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS rejected ON TABLE upload_batch TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS async_processing ON TABLE upload_batch TYPE bool DEFAULT true;
+DEFINE FIELD IF NOT EXISTS embed ON TABLE upload_batch TYPE bool DEFAULT true;
+DEFINE FIELD IF NOT EXISTS created ON TABLE upload_batch TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE upload_batch TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_upload_batch_notebook ON TABLE upload_batch FIELDS notebook;
+DEFINE INDEX IF NOT EXISTS idx_upload_batch_status ON TABLE upload_batch FIELDS status;
+
+DEFINE TABLE IF NOT EXISTS upload_batch_item SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS batch ON TABLE upload_batch_item TYPE record<upload_batch>;
+DEFINE FIELD IF NOT EXISTS client_file_id ON TABLE upload_batch_item TYPE string;
+DEFINE FIELD IF NOT EXISTS filename ON TABLE upload_batch_item TYPE string;
+DEFINE FIELD IF NOT EXISTS title ON TABLE upload_batch_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE upload_batch_item TYPE string DEFAULT 'queued' ASSERT $value IN ['queued', 'uploading', 'uploaded', 'processing', 'ready', 'failed'];
+DEFINE FIELD IF NOT EXISTS source ON TABLE upload_batch_item TYPE option<record<source>>;
+DEFINE FIELD IF NOT EXISTS reference ON TABLE upload_batch_item TYPE option<record<reference>>;
+DEFINE FIELD IF NOT EXISTS error ON TABLE upload_batch_item TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE upload_batch_item TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE upload_batch_item TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_upload_batch_item_batch ON TABLE upload_batch_item FIELDS batch;
+DEFINE INDEX IF NOT EXISTS idx_upload_batch_item_batch_client_file ON TABLE upload_batch_item FIELDS batch, client_file_id UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_upload_batch_item_status ON TABLE upload_batch_item FIELDS status;

@@ -15,12 +15,29 @@ from open_notebook.database.async_migrate import (
 def test_migration_16_is_registered():
     manager = AsyncMigrationManager()
 
-    assert len(manager.up_migrations) == 16
-    assert len(manager.down_migrations) == 16
+    assert len(manager.up_migrations) == 17
+    assert len(manager.down_migrations) == 17
     assert "dictionary_type" in manager.up_migrations[15].sql
     assert "folder" in manager.up_migrations[15].sql
     assert "idx_reference_source_notebook" in manager.up_migrations[15].sql
     assert "REMOVE TABLE IF EXISTS folder" in manager.down_migrations[15].sql
+    assert "upload_batch" in manager.up_migrations[16].sql
+    assert "upload_batch" in manager.down_migrations[16].sql
+
+
+def test_migration_17_sql_contains_upload_batch_schema():
+    sql = Path("open_notebook/database/migrations/17.surrealql").read_text()
+
+    assert "DEFINE TABLE IF NOT EXISTS upload_batch SCHEMAFULL" in sql
+    assert "DEFINE TABLE IF NOT EXISTS upload_batch_item SCHEMAFULL" in sql
+    assert "idx_upload_batch_item_batch_client_file" in sql
+
+
+def test_migration_17_down_sql_removes_upload_batch_schema():
+    sql = Path("open_notebook/database/migrations/17_down.surrealql").read_text()
+
+    assert "REMOVE TABLE IF EXISTS upload_batch_item" in sql
+    assert "REMOVE TABLE IF EXISTS upload_batch" in sql
 
 
 def test_migration_16_sql_contains_expected_kbook_schema():

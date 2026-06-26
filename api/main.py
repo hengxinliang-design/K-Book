@@ -29,6 +29,7 @@ from api.routers import (
     kbook_folders,
     kbook_notebooks,
     kbook_source_metadata,
+    kbook_upload_batches,
     kbook_upload_config,
     languages,
     models,
@@ -331,6 +332,11 @@ app.include_router(
     kbook_source_metadata.router,
     prefix="/api/kbook",
     tags=["kbook-source-metadata"],
+)
+app.include_router(
+    kbook_upload_batches.router,
+    prefix="/api/kbook",
+    tags=["kbook-upload-batches"],
 )
 
 
