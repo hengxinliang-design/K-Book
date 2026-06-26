@@ -196,3 +196,51 @@ class KBookMoveFileRequest(BaseModel):
     """Move a file to another folder in the current notebook."""
 
     folder_id: str | None = None
+
+
+class KBookSourceTitleUpdateRequest(BaseModel):
+    """Update a source display title."""
+
+    title: str
+
+
+class KBookSourceTitleResponse(BaseModel):
+    """Source title update response."""
+
+    source_id: str
+    title: str
+    updated: str | None = None
+
+
+class KBookSourceProfileUpdateRequest(BaseModel):
+    """Update source business metadata."""
+
+    module_id: str | None = None
+    document_type_id: str | None = None
+    business_version: str | None = None
+    status_id: str | None = None
+
+
+class KBookSourceProfileResponse(BaseModel):
+    """Source business metadata update response."""
+
+    source_id: str
+    module_id: str | None = None
+    document_type_id: str | None = None
+    business_version: str | None = None
+    status_id: str | None = None
+    updated: str | None = None
+
+
+class KBookSourceTagsUpdateRequest(BaseModel):
+    """Replace source tags request."""
+
+    tag_ids: list[str] = Field(default_factory=list)
+
+
+class KBookSourceTagsResponse(BaseModel):
+    """Source tags update response."""
+
+    source_id: str
+    tag_ids: list[str]
+    updated: str | None = None
