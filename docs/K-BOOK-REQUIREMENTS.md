@@ -6,6 +6,7 @@
 - 基线项目：Open Notebook
 - 基线提交：`14ba8f51e81f34855cd21c390f2576215d8808dd`
 - 目标：在保留 Open Notebook 文档处理、检索和问答能力的基础上，增强文件组织与知识库管理能力。
+- 验证报告：[K-Book 当前设计基线测试报告](K-BOOK-BASELINE-VALIDATION.md)
 
 本文档是 K-Book 二次开发的需求边界。未列入本文档的业务流程，不在当前开发范围内。
 

@@ -31,7 +31,7 @@ git remote add upstream https://github.com/lfnovo/open-notebook.git
 uv sync
 
 # Or using pip
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## Step 3: Environment Variables
@@ -337,7 +337,7 @@ uvicorn api.main:app --port 5056
 uv sync
 
 # Or with pip
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ### Database migration failures

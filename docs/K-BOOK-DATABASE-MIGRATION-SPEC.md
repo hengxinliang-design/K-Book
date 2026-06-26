@@ -77,19 +77,31 @@ notebook (in) -> notebook_ln_version -> dictionary_item (out)
 检查同一 Source 和 Notebook 是否存在多个 Reference：
 
 ```surrealql
-SELECT in, out, count() AS total
-FROM reference
-GROUP BY in, out
-HAVING total > 1;
+SELECT *
+FROM (
+    SELECT in, out, count() AS total
+    FROM reference
+    GROUP BY in, out
+)
+WHERE total > 1;
 ```
 
 如果存在重复：
 
-- 保留一个关系。
+- 由运维或迁移工具明确选择一个关系保留。
 - 删除其余重复关系。
 - 本期尚无目录信息，因此无需合并 Folder。
 
 在没有清理重复关系前，不创建 `reference(in, out)` 唯一索引。
+
+由于迁移由 API 启动时自动执行，正式实现必须在执行迁移 16 前增加
+`validate_migration_16_preconditions()`。发现重复或悬空 Reference 时：
+
+- 中止迁移。
+- 输出 Source、Notebook 和重复数量。
+- 不自动选择要保留的关系。
+
+现有重复关系可能来自旧版 `add_source_to_notebook` 的方向判断错误，因此不能假设生产数据一定干净。
 
 ### 4.2 悬空关系
 
@@ -790,6 +802,9 @@ REMOVE TABLE IF EXISTS customer;
 
 ## 13. 迁移测试
 
+迁移候选结构已在 `SurrealDB 2.6.5` 上完成语法和约束验证。
+正式实现仍需使用最终的 `16.surrealql` 重新执行本节全部测试。
+
 ### 13.1 Up Migration
 
 - 空数据库从 0 连续迁移到 16。
@@ -830,6 +845,17 @@ REMOVE TABLE IF EXISTS customer;
 - 原 Source 可以关联 Notebook。
 - 原全文和向量搜索结果不因迁移本身改变。
 - 原聊天与引用仍能使用 Source ID。
+
+### 13.6 数据库版本固定
+
+当前 Compose 使用浮动镜像 `surrealdb/surrealdb:v2`。它在本次验证时解析为
+`2.6.5`，但未来可能自动变化。
+
+K-Book 首次发布迁移 16 时必须：
+
+- 将生产镜像固定到通过测试的精确版本或镜像摘要。
+- 在升级 SurrealDB 前重新执行 Up、Down、约束和兼容性测试。
+- 禁止生产环境使用 `pull_policy: always` 搭配浮动 `v2` 标签。
 
 ## 14. 实现前待确认项
 
