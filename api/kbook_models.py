@@ -105,3 +105,72 @@ class KBookFolderResponse(BaseModel):
     sort_order: int = 0
     created: str | None = None
     updated: str | None = None
+
+
+class KBookFileDictionaryValue(BaseModel):
+    """Small dictionary value embedded in file list responses."""
+
+    id: str
+    name: str
+
+
+class KBookFileFolderValue(BaseModel):
+    """Folder location embedded in file list responses."""
+
+    id: str
+    path: str
+
+
+class KBookFileProfileValue(BaseModel):
+    """Source profile embedded in file list responses."""
+
+    module: KBookFileDictionaryValue | None = None
+    document_type: KBookFileDictionaryValue | None = None
+    business_version: str | None = None
+    status: KBookFileDictionaryValue | None = None
+
+
+class KBookFileProcessingValue(BaseModel):
+    """Processing state embedded in file list responses."""
+
+    status: str
+    embedded: bool = False
+    error: str | None = None
+
+
+class KBookFileListItem(BaseModel):
+    """File row for a K-Book notebook file list."""
+
+    source_id: str
+    reference_id: str
+    title: str | None = None
+    original_filename: str | None = None
+    folder: KBookFileFolderValue | None = None
+    tags: list[KBookFileDictionaryValue] = Field(default_factory=list)
+    profile: KBookFileProfileValue = Field(default_factory=KBookFileProfileValue)
+    processing: KBookFileProcessingValue
+    created: str | None = None
+    updated: str | None = None
+
+
+class KBookFileListResponse(BaseModel):
+    """Paginated K-Book file list response."""
+
+    items: list[KBookFileListItem]
+    total: int
+    limit: int
+    offset: int
+
+
+class KBookFileDetailResponse(KBookFileListItem):
+    """K-Book file detail response."""
+
+    shared_notebook_count: int = 0
+    global_metadata_warning: bool = False
+    full_text_available: bool = False
+
+
+class KBookMoveFileRequest(BaseModel):
+    """Move a file to another folder in the current notebook."""
+
+    folder_id: str | None = None
