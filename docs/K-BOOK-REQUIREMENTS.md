@@ -248,4 +248,4 @@ K-Book 不提供 Podcast 功能。
 2. [第一期数据库迁移设计](K-BOOK-DATABASE-MIGRATION-SPEC.md)。
 3. [上传向导和文件管理页面流程](K-BOOK-UPLOAD-AND-FILE-MANAGEMENT-FLOW.md)。
 4. [上传与文件管理 API 契约](K-BOOK-UPLOAD-FILE-MANAGEMENT-API.md)。
-5. 文件替换的事务与回滚流程。
+5. [后端实现拆分设计](K-BOOK-BACKEND-IMPLEMENTATION-SPLIT.md)。
