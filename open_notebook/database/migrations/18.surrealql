@@ -1,0 +1,6 @@
+-- Migration 18: K-Book upload batch real processing metadata.
+-- Stores saved file paths and optional command references for per-file status tracking.
+
+DEFINE FIELD IF NOT EXISTS file_path ON TABLE upload_batch_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS command ON TABLE upload_batch_item TYPE option<record<command>>;
+DEFINE INDEX IF NOT EXISTS idx_upload_batch_item_command ON TABLE upload_batch_item FIELDS command;

@@ -1,0 +1,5 @@
+-- Rollback migration 18: remove K-Book upload batch real processing metadata.
+
+REMOVE INDEX IF EXISTS idx_upload_batch_item_command ON TABLE upload_batch_item;
+REMOVE FIELD IF EXISTS command ON TABLE upload_batch_item;
+REMOVE FIELD IF EXISTS file_path ON TABLE upload_batch_item;
