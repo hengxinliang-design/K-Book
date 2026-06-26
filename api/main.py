@@ -24,6 +24,7 @@ from api.routers import (
     episode_profiles,
     insights,
     kbook_dictionary,
+    kbook_folders,
     kbook_upload_config,
     languages,
     models,
@@ -318,6 +319,7 @@ app.include_router(
 app.include_router(
     kbook_dictionary.router, prefix="/api/kbook", tags=["kbook-dictionary"]
 )
+app.include_router(kbook_folders.router, prefix="/api/kbook", tags=["kbook-folders"])
 
 
 @app.get("/")
