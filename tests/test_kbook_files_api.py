@@ -10,10 +10,13 @@ from api.kbook_errors import add_kbook_exception_handler
 from api.routers import kbook_files
 from api.routers.kbook_files import router
 from api.kbook_models import (
+    KBookAddExistingSourceResponse,
     KBookFileDetailResponse,
     KBookFileListItem,
     KBookFileListResponse,
     KBookFileProcessingValue,
+    KBookRemoveFileResponse,
+    KBookSourceSearchResponse,
 )
 from api.kbook_services import files as files_service
 from api.kbook_services.files import FileValidationError, KBookFileFilters
@@ -122,6 +125,77 @@ def test_move_file_route(monkeypatch):
         notebook_id="notebook:1",
         source_id="source:1",
         folder_id="folder:1",
+    )
+
+
+def test_remove_file_route(monkeypatch):
+    expected = KBookRemoveFileResponse(
+        notebook_id="notebook:1",
+        source_id="source:1",
+        removed=True,
+    )
+    mock_remove = AsyncMock(return_value=expected)
+    monkeypatch.setattr(kbook_files, "remove_file_from_notebook", mock_remove)
+
+    response = _client().delete("/api/kbook/notebooks/notebook:1/files/source:1")
+
+    assert response.status_code == 200
+    assert response.json() == expected.model_dump()
+    mock_remove.assert_awaited_once_with("notebook:1", "source:1")
+
+
+def test_add_existing_source_route(monkeypatch):
+    expected = KBookAddExistingSourceResponse(
+        source_id="source:1",
+        reference_id="reference:1",
+        notebook_id="notebook:1",
+        folder_id="folder:1",
+        already_exists=False,
+    )
+    mock_add = AsyncMock(return_value=expected)
+    monkeypatch.setattr(kbook_files, "add_existing_source_to_notebook", mock_add)
+
+    response = _client().post(
+        "/api/kbook/notebooks/notebook:1/files",
+        json={"source_id": "source:1", "folder_id": "folder:1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == expected.model_dump()
+    mock_add.assert_awaited_once_with(
+        notebook_id="notebook:1",
+        source_id="source:1",
+        folder_id="folder:1",
+    )
+
+
+def test_search_existing_sources_route(monkeypatch):
+    expected = KBookSourceSearchResponse(
+        items=[],
+        total=0,
+        limit=20,
+        offset=5,
+    )
+    mock_search = AsyncMock(return_value=expected)
+    monkeypatch.setattr(kbook_files, "search_existing_sources", mock_search)
+
+    response = _client().get(
+        "/api/kbook/sources/search",
+        params={
+            "keyword": "采购",
+            "exclude_notebook_id": "notebook:1",
+            "limit": "20",
+            "offset": "5",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == expected.model_dump()
+    mock_search.assert_awaited_once_with(
+        keyword="采购",
+        exclude_notebook_id="notebook:1",
+        limit=20,
+        offset=5,
     )
 
 
@@ -332,3 +406,108 @@ async def test_move_file_to_folder_updates_reference_only(monkeypatch):
     assert "source_profile" not in update_call[0]
     assert "source_tag" not in update_call[0]
     assert _record_text(update_call[1]["folder_id"]) == "folder:1"
+
+
+@pytest.mark.asyncio
+async def test_remove_file_from_notebook_deletes_reference_only(monkeypatch):
+    calls = []
+
+    async def fake_repo_query(query, params=None):
+        calls.append((query, params))
+        if "SELECT id FROM $record_id" in query:
+            return [{"id": "notebook:1"}]
+        if "FROM reference" in query and "LIMIT 1" in query:
+            return [{"id": "reference:1"}]
+        if query.strip().startswith("DELETE $reference_id"):
+            return []
+        return []
+
+    monkeypatch.setattr(files_service, "repo_query", AsyncMock(side_effect=fake_repo_query))
+
+    result = await files_service.remove_file_from_notebook("notebook:1", "source:1")
+
+    assert result.removed is True
+    delete_call = [call for call in calls if call[0].strip().startswith("DELETE $reference_id")][0]
+    assert "source " not in delete_call[0]
+    assert "source_profile" not in delete_call[0]
+
+
+@pytest.mark.asyncio
+async def test_add_existing_source_is_idempotent_when_reference_exists(monkeypatch):
+    async def fake_repo_query(query, params=None):
+        if "SELECT id FROM $record_id" in query:
+            return [{"id": _record_text(params["record_id"])}]
+        if "FROM reference" in query and "LIMIT 1" in query:
+            return [{"id": "reference:1", "folder": "folder:1"}]
+        return []
+
+    monkeypatch.setattr(files_service, "repo_query", AsyncMock(side_effect=fake_repo_query))
+    monkeypatch.setattr(files_service, "folder_belongs_to_notebook", AsyncMock(return_value=True))
+
+    result = await files_service.add_existing_source_to_notebook(
+        "notebook:1",
+        "source:1",
+        "folder:1",
+    )
+
+    assert result.already_exists is True
+    assert result.reference_id == "reference:1"
+
+
+@pytest.mark.asyncio
+async def test_add_existing_source_creates_reference_with_folder(monkeypatch):
+    calls = []
+
+    async def fake_repo_query(query, params=None):
+        calls.append((query, params))
+        if "SELECT id FROM $record_id" in query:
+            return [{"id": _record_text(params["record_id"])}]
+        if "FROM reference" in query and "LIMIT 1" in query:
+            return []
+        if query.strip().startswith("RELATE"):
+            return [{"id": "reference:1"}]
+        return []
+
+    monkeypatch.setattr(files_service, "repo_query", AsyncMock(side_effect=fake_repo_query))
+    monkeypatch.setattr(files_service, "folder_belongs_to_notebook", AsyncMock(return_value=True))
+
+    result = await files_service.add_existing_source_to_notebook(
+        "notebook:1",
+        "source:1",
+        "folder:1",
+    )
+
+    assert result.already_exists is False
+    relate_call = [call for call in calls if call[0].strip().startswith("RELATE")][0]
+    assert "folder = $folder_id" in relate_call[0]
+    assert _record_text(relate_call[1]["folder_id"]) == "folder:1"
+
+
+@pytest.mark.asyncio
+async def test_search_existing_sources_excludes_notebook_sources(monkeypatch):
+    async def fake_repo_query(query, params=None):
+        if "SELECT id FROM $record_id" in query:
+            return [{"id": "notebook:1"}]
+        if "FROM source" in query:
+            return [
+                {"id": "source:1", "title": "采购订单蓝图"},
+                {"id": "source:2", "title": "销售订单蓝图"},
+            ]
+        if "FROM reference" in query and "LIMIT 1" in query:
+            source_id = _record_text(params["source_id"])
+            return [{"id": "reference:1"}] if source_id == "source:1" else []
+        if "FROM source_profile" in query or "FROM source_tag" in query:
+            return []
+        if "SELECT count() AS total FROM reference WHERE in" in query:
+            return [{"total": 0}]
+        return []
+
+    monkeypatch.setattr(files_service, "repo_query", AsyncMock(side_effect=fake_repo_query))
+
+    result = await files_service.search_existing_sources(
+        keyword="订单",
+        exclude_notebook_id="notebook:1",
+    )
+
+    assert result.total == 1
+    assert result.items[0].source_id == "source:2"

@@ -11,6 +11,10 @@ from api.kbook_models import (
     KBookFileListResponse,
     KBookFileProcessingValue,
     KBookFileProfileValue,
+    KBookRemoveFileResponse,
+    KBookSourceSearchItem,
+    KBookSourceSearchResponse,
+    KBookAddExistingSourceResponse,
 )
 from api.kbook_services.folders import folder_belongs_to_notebook
 from open_notebook.database.repository import ensure_record_id, repo_query
@@ -65,6 +69,15 @@ async def _assert_notebook_exists(notebook_id: str) -> None:
             "notebook_not_found",
             "Notebook not found",
             {"notebook_id": notebook_id},
+        )
+
+
+async def _assert_source_exists(source_id: str) -> None:
+    if not await _record_exists(source_id):
+        raise FileValidationError(
+            "source_not_found",
+            "Source not found",
+            {"source_id": source_id},
         )
 
 
@@ -143,6 +156,25 @@ async def _list_references(notebook_id: str) -> list[dict[str, Any]]:
     )
 
 
+async def _source_reference_in_notebook(
+    notebook_id: str,
+    source_id: str,
+) -> dict[str, Any] | None:
+    rows = await repo_query(
+        """
+        SELECT id, folder
+        FROM reference
+        WHERE out = $notebook_id AND in = $source_id
+        LIMIT 1
+        """,
+        {
+            "notebook_id": ensure_record_id(notebook_id),
+            "source_id": ensure_record_id(source_id),
+        },
+    )
+    return rows[0] if rows else None
+
+
 async def _get_profile(source_id: str) -> dict[str, Any] | None:
     rows = await repo_query(
         """
@@ -185,6 +217,34 @@ async def _shared_notebook_count(source_id: str) -> int:
         {"source_id": ensure_record_id(source_id)},
     )
     return rows[0].get("total", 0) if rows else 0
+
+
+async def _source_search_item_from_source(
+    source: dict[str, Any],
+) -> KBookSourceSearchItem:
+    source_id = str(source.get("id", ""))
+    profile = await _get_profile(source_id)
+    tags = await _get_tags(source_id)
+
+    profile_value = KBookFileProfileValue()
+    original_filename = None
+    if profile:
+        profile_value = KBookFileProfileValue(
+            module=_dict_value(profile.get("module")),
+            document_type=_dict_value(profile.get("document_type")),
+            business_version=profile.get("business_version"),
+            status=_dict_value(profile.get("status")),
+        )
+        original_filename = profile.get("original_filename")
+
+    return KBookSourceSearchItem(
+        source_id=source_id,
+        title=source.get("title"),
+        original_filename=original_filename,
+        tags=tags,
+        profile=profile_value,
+        shared_notebook_count=await _shared_notebook_count(source_id),
+    )
 
 
 def _source_from_reference(reference: dict[str, Any]) -> dict[str, Any]:
@@ -428,3 +488,124 @@ async def move_file_to_folder(
         },
     )
     return await get_notebook_file_detail(notebook_id, source_id)
+
+
+async def remove_file_from_notebook(
+    notebook_id: str,
+    source_id: str,
+) -> KBookRemoveFileResponse:
+    """Remove a source reference from a notebook without deleting the source."""
+    await _assert_notebook_exists(notebook_id)
+    reference = await _source_reference_in_notebook(notebook_id, source_id)
+    if not reference:
+        raise FileValidationError(
+            "source_not_found",
+            "Source is not linked to notebook",
+            {"notebook_id": notebook_id, "source_id": source_id},
+        )
+
+    await repo_query(
+        "DELETE $reference_id",
+        {"reference_id": ensure_record_id(str(reference["id"]))},
+    )
+    return KBookRemoveFileResponse(
+        notebook_id=notebook_id,
+        source_id=source_id,
+        removed=True,
+    )
+
+
+async def search_existing_sources(
+    keyword: str | None = None,
+    exclude_notebook_id: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> KBookSourceSearchResponse:
+    """Search existing sources that can be added to a notebook."""
+    normalized_keyword = keyword.strip() if keyword else None
+    if exclude_notebook_id:
+        await _assert_notebook_exists(exclude_notebook_id)
+
+    where_sql = ""
+    params: dict[str, Any] = {"keyword": normalized_keyword}
+    if normalized_keyword:
+        where_sql = """
+        WHERE string::lowercase(title) CONTAINS string::lowercase($keyword)
+        """
+
+    rows = await repo_query(
+        f"""
+        SELECT id, title, created, updated
+        FROM source
+        {where_sql}
+        ORDER BY updated DESC, title ASC
+        """,
+        params,
+    )
+    items = []
+    for row in rows:
+        source_id = str(row.get("id", ""))
+        if exclude_notebook_id and await _source_reference_in_notebook(
+            exclude_notebook_id,
+            source_id,
+        ):
+            continue
+        items.append(await _source_search_item_from_source(row))
+
+    total = len(items)
+    page = items[offset : offset + limit]
+    return KBookSourceSearchResponse(
+        items=page,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+async def add_existing_source_to_notebook(
+    notebook_id: str,
+    source_id: str,
+    folder_id: str | None = None,
+) -> KBookAddExistingSourceResponse:
+    """Add an existing source to a notebook with optional folder placement."""
+    await _assert_notebook_exists(notebook_id)
+    await _assert_source_exists(source_id)
+    if folder_id and not await folder_belongs_to_notebook(folder_id, notebook_id):
+        raise FileValidationError(
+            "folder_not_found",
+            "Folder not found in notebook",
+            {"folder_id": folder_id, "notebook_id": notebook_id},
+        )
+
+    reference = await _source_reference_in_notebook(notebook_id, source_id)
+    if reference:
+        folder = reference.get("folder")
+        return KBookAddExistingSourceResponse(
+            source_id=source_id,
+            reference_id=str(reference.get("id", "")),
+            notebook_id=notebook_id,
+            folder_id=str(folder) if folder else None,
+            already_exists=True,
+        )
+
+    rows = await repo_query(
+        """
+        RELATE $source_id->reference->$notebook_id SET
+            folder = $folder_id,
+            created = time::now(),
+            updated = time::now()
+        """,
+        {
+            "source_id": ensure_record_id(source_id),
+            "notebook_id": ensure_record_id(notebook_id),
+            "folder_id": _record_id_or_none(folder_id),
+        },
+    )
+    reference_id = str(rows[0].get("id", "")) if rows else None
+    return KBookAddExistingSourceResponse(
+        source_id=source_id,
+        reference_id=reference_id,
+        notebook_id=notebook_id,
+        folder_id=folder_id,
+        already_exists=False,
+    )

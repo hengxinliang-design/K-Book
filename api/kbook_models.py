@@ -198,6 +198,51 @@ class KBookMoveFileRequest(BaseModel):
     folder_id: str | None = None
 
 
+class KBookRemoveFileResponse(BaseModel):
+    """Remove source from notebook response."""
+
+    notebook_id: str
+    source_id: str
+    removed: bool
+
+
+class KBookSourceSearchItem(BaseModel):
+    """Search result for adding an existing source to a notebook."""
+
+    source_id: str
+    title: str | None = None
+    original_filename: str | None = None
+    tags: list[KBookFileDictionaryValue] = Field(default_factory=list)
+    profile: KBookFileProfileValue = Field(default_factory=KBookFileProfileValue)
+    shared_notebook_count: int = 0
+
+
+class KBookSourceSearchResponse(BaseModel):
+    """Paginated existing source search response."""
+
+    items: list[KBookSourceSearchItem]
+    total: int
+    limit: int
+    offset: int
+
+
+class KBookAddExistingSourceRequest(BaseModel):
+    """Add an existing source to a notebook."""
+
+    source_id: str
+    folder_id: str | None = None
+
+
+class KBookAddExistingSourceResponse(BaseModel):
+    """Add existing source to notebook response."""
+
+    source_id: str
+    reference_id: str | None = None
+    notebook_id: str
+    folder_id: str | None = None
+    already_exists: bool = False
+
+
 class KBookSourceTitleUpdateRequest(BaseModel):
     """Update a source display title."""
 
