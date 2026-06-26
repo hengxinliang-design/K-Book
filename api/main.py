@@ -13,6 +13,7 @@ from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.auth import PasswordAuthMiddleware
+from api.kbook_errors import KBookHTTPException, kbook_exception_handler
 from api.routers import (
     auth,
     chat,
@@ -163,6 +164,7 @@ app = FastAPI(
     description="API for Open Notebook - Research Assistant",
     lifespan=lifespan,
 )
+app.add_exception_handler(KBookHTTPException, kbook_exception_handler)
 
 if CORS_IS_DEFAULT_WILDCARD:
     logger.warning(

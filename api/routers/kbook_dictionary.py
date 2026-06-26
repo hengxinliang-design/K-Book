@@ -1,7 +1,8 @@
 """K-Book dictionary query routes."""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
+from api.kbook_errors import kbook_http_error
 from api.kbook_models import (
     KBookDictionaryItemsResponse,
     KBookDictionaryTypesResponse,
@@ -38,13 +39,4 @@ async def get_kbook_dictionary_items(
             offset=offset,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": {
-                    "code": "validation_failed",
-                    "message": str(exc),
-                    "details": {"type": type},
-                }
-            },
-        ) from exc
+        raise kbook_http_error(exc, details={"type": type}) from exc

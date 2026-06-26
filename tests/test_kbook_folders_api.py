@@ -6,6 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from api.kbook_errors import add_kbook_exception_handler
 from api.routers import kbook_folders
 from api.routers.kbook_folders import router
 from api.kbook_models import KBookFolderResponse, KBookFolderTreeResponse
@@ -19,6 +20,7 @@ from api.kbook_services.folders import (
 
 def _client() -> TestClient:
     app = FastAPI()
+    add_kbook_exception_handler(app)
     app.include_router(router, prefix="/api/kbook")
     return TestClient(app)
 
@@ -137,9 +139,9 @@ def test_folder_route_maps_validation_error(monkeypatch):
     )
 
     assert response.status_code == 400
-    detail = response.json()["detail"]
-    assert detail["error"]["code"] == "validation_failed"
-    assert detail["error"]["details"] == {"field": "name"}
+    error = response.json()["error"]
+    assert error["code"] == "validation_failed"
+    assert error["details"] == {"field": "name"}
 
 
 def test_delete_folder_route_returns_204(monkeypatch):

@@ -6,6 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from api.kbook_errors import add_kbook_exception_handler
 from api.routers import kbook_files
 from api.routers.kbook_files import router
 from api.kbook_models import (
@@ -24,6 +25,7 @@ def _record_text(value) -> str:
 
 def _client() -> TestClient:
     app = FastAPI()
+    add_kbook_exception_handler(app)
     app.include_router(router, prefix="/api/kbook")
     return TestClient(app)
 
@@ -136,7 +138,7 @@ def test_file_route_maps_not_found(monkeypatch):
     response = _client().get("/api/kbook/notebooks/notebook:1/files/source:1")
 
     assert response.status_code == 404
-    assert response.json()["detail"]["error"]["code"] == "source_not_found"
+    assert response.json()["error"]["code"] == "source_not_found"
 
 
 def test_matches_filters_supports_tags_profile_keyword_and_root():

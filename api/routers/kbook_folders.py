@@ -1,7 +1,8 @@
 """K-Book folder management routes."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 
+from api.kbook_errors import KBookHTTPException, kbook_http_error
 from api.kbook_models import (
     KBookFolderCreateRequest,
     KBookFolderMoveRequest,
@@ -21,19 +22,10 @@ from api.kbook_services.folders import (
 router = APIRouter()
 
 
-def _folder_error(exc: FolderValidationError) -> HTTPException:
-    status_code = 400
-    if exc.code in {"folder_not_found", "notebook_not_found"}:
-        status_code = 404
-    return HTTPException(
-        status_code=status_code,
-        detail={
-            "error": {
-                "code": exc.code,
-                "message": str(exc),
-                "details": exc.details,
-            }
-        },
+def _folder_error(exc: FolderValidationError) -> KBookHTTPException:
+    return kbook_http_error(
+        exc,
+        not_found_codes={"folder_not_found", "notebook_not_found"},
     )
 
 

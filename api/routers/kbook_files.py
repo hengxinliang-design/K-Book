@@ -2,8 +2,9 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
+from api.kbook_errors import KBookHTTPException, kbook_http_error
 from api.kbook_models import (
     KBookFileDetailResponse,
     KBookFileListResponse,
@@ -20,19 +21,10 @@ from api.kbook_services.files import (
 router = APIRouter()
 
 
-def _file_error(exc: FileValidationError) -> HTTPException:
-    status_code = 400
-    if exc.code in {"notebook_not_found", "source_not_found", "folder_not_found"}:
-        status_code = 404
-    return HTTPException(
-        status_code=status_code,
-        detail={
-            "error": {
-                "code": exc.code,
-                "message": str(exc),
-                "details": exc.details,
-            }
-        },
+def _file_error(exc: FileValidationError) -> KBookHTTPException:
+    return kbook_http_error(
+        exc,
+        not_found_codes={"notebook_not_found", "source_not_found", "folder_not_found"},
     )
 
 
