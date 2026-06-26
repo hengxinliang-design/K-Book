@@ -51,6 +51,28 @@ class KBookDictionaryItemsResponse(BaseModel):
     offset: int
 
 
+class KBookDictionaryItemCreateRequest(BaseModel):
+    """Create dictionary item request."""
+
+    type: str
+    code: str
+    name: str
+    description: str | None = None
+    sort_order: int = 0
+    color: str | None = None
+
+
+class KBookDictionaryItemUpdateRequest(BaseModel):
+    """Update dictionary item request."""
+
+    code: str | None = None
+    name: str | None = None
+    description: str | None = None
+    status: str | None = None
+    sort_order: int | None = None
+    color: str | None = None
+
+
 class KBookFolderNode(BaseModel):
     """Folder node for the K-Book notebook folder tree."""
 
