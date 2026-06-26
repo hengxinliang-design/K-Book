@@ -270,7 +270,7 @@ async def get_upload_batch(batch_id: str) -> KBookUploadBatchResponse:
         )
     item_rows = await repo_query(
         """
-        SELECT client_file_id, filename, status, source, reference, error
+        SELECT client_file_id, filename, status, source, reference, error, created
         FROM upload_batch_item
         WHERE batch = $batch_id
         ORDER BY created ASC, client_file_id ASC

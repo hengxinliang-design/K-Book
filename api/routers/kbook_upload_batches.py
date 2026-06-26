@@ -1,6 +1,7 @@
 """K-Book upload batch routes."""
 
 from fastapi import APIRouter, Request, status
+from pydantic import ValidationError
 
 from api.kbook_errors import kbook_http_error
 from api.kbook_models import (
@@ -63,6 +64,14 @@ async def create_kbook_upload_batch(request: Request) -> KBookUploadBatchRespons
         )
     except UploadBatchValidationError as exc:
         raise _upload_batch_error(exc) from exc
+    except ValidationError as exc:
+        raise _upload_batch_error(
+            UploadBatchValidationError(
+                "invalid_upload_batch_request",
+                "Invalid upload batch request",
+                {"validation_error": str(exc)},
+            )
+        ) from exc
 
 
 @router.get("/upload-batches/{batch_id}", response_model=KBookUploadBatchResponse)
