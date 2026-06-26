@@ -3,11 +3,12 @@ Async migration system for SurrealDB using the official Python client.
 Based on patterns from sblpy migration system.
 """
 
-from typing import List
+from collections import Counter
+from typing import Any, List
 
 from loguru import logger
 
-from .repository import db_connection, repo_query
+from .repository import db_connection, ensure_record_id, repo_query
 
 
 class AsyncMigration:
@@ -69,6 +70,8 @@ class AsyncMigrationRunner:
 
         for i in range(current_version, len(self.up_migrations)):
             logger.info(f"Running migration {i + 1}")
+            if i + 1 == 16:
+                await validate_migration_16_preconditions()
             await self.up_migrations[i].run(bump=True)
 
     async def run_one_up(self) -> None:
@@ -77,6 +80,8 @@ class AsyncMigrationRunner:
 
         if current_version < len(self.up_migrations):
             logger.info(f"Running migration {current_version + 1}")
+            if current_version + 1 == 16:
+                await validate_migration_16_preconditions()
             await self.up_migrations[current_version].run(bump=True)
 
     async def run_one_down(self) -> None:
@@ -120,6 +125,9 @@ class AsyncMigrationManager:
             ),
             AsyncMigration.from_file(
                 "open_notebook/database/migrations/15.surrealql"
+            ),
+            AsyncMigration.from_file(
+                "open_notebook/database/migrations/16.surrealql"
             ),
         ]
         self.down_migrations = [
@@ -167,6 +175,9 @@ class AsyncMigrationManager:
             ),
             AsyncMigration.from_file(
                 "open_notebook/database/migrations/15_down.surrealql"
+            ),
+            AsyncMigration.from_file(
+                "open_notebook/database/migrations/16_down.surrealql"
             ),
         ]
         self.runner = AsyncMigrationRunner(
@@ -221,6 +232,84 @@ async def get_all_versions() -> List[dict]:
     except Exception:
         # If table doesn't exist, return empty list
         return []
+
+
+def _stringify_record_id(value: Any) -> str:
+    """Convert SurrealDB record IDs to a stable string for diagnostics."""
+    return str(value)
+
+
+async def _record_exists(record_id: Any) -> bool:
+    """Return whether a SurrealDB record exists."""
+    try:
+        normalized_record_id = ensure_record_id(record_id)
+    except Exception:
+        return False
+
+    result = await repo_query(
+        "SELECT * FROM $record_id;", {"record_id": normalized_record_id}
+    )
+    return bool(result)
+
+
+async def validate_migration_16_preconditions() -> None:
+    """
+    Validate existing reference rows before adding the K-Book unique index.
+
+    Migration 16 adds a unique index on reference(in, out). Existing duplicate or
+    dangling reference rows need explicit cleanup instead of silent guessing.
+    """
+    references = await repo_query("SELECT id, in, out FROM reference;")
+    if not references:
+        return
+
+    reference_pairs = [
+        (_stringify_record_id(row.get("in")), _stringify_record_id(row.get("out")))
+        for row in references
+    ]
+    duplicate_pairs = {
+        pair: total for pair, total in Counter(reference_pairs).items() if total > 1
+    }
+    if duplicate_pairs:
+        details = "; ".join(
+            f"source={source_id}, notebook={notebook_id}, total={total}"
+            for (source_id, notebook_id), total in sorted(duplicate_pairs.items())
+        )
+        raise RuntimeError(
+            "Migration 16 preflight failed: duplicate reference(in, out) rows "
+            f"must be cleaned before adding the unique index. {details}"
+        )
+
+    dangling_references = []
+    for row in references:
+        source_id = row.get("in")
+        notebook_id = row.get("out")
+        source_exists = await _record_exists(source_id)
+        notebook_exists = await _record_exists(notebook_id)
+        if not source_exists or not notebook_exists:
+            dangling_references.append(
+                {
+                    "reference": _stringify_record_id(row.get("id")),
+                    "source": _stringify_record_id(source_id),
+                    "source_exists": source_exists,
+                    "notebook": _stringify_record_id(notebook_id),
+                    "notebook_exists": notebook_exists,
+                }
+            )
+
+    if dangling_references:
+        details = "; ".join(
+            (
+                f"reference={item['reference']}, source={item['source']} "
+                f"(exists={item['source_exists']}), notebook={item['notebook']} "
+                f"(exists={item['notebook_exists']})"
+            )
+            for item in dangling_references
+        )
+        raise RuntimeError(
+            "Migration 16 preflight failed: dangling reference rows must be "
+            f"cleaned before migration. {details}"
+        )
 
 
 async def bump_version() -> None:

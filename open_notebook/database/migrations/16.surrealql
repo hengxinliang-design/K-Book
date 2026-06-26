@@ -1,0 +1,121 @@
+-- Migration 16: K-Book first-phase file organization schema.
+-- Adds customers, projects, folders, dictionaries, source metadata, tags,
+-- notebook LN versions, and folder placement on source->notebook references.
+
+DEFINE TABLE IF NOT EXISTS customer SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS code ON TABLE customer TYPE string;
+DEFINE FIELD IF NOT EXISTS name ON TABLE customer TYPE string;
+DEFINE FIELD IF NOT EXISTS normalized_name ON TABLE customer TYPE string;
+DEFINE FIELD IF NOT EXISTS status ON TABLE customer TYPE string DEFAULT 'active' ASSERT $value IN ['active', 'inactive'];
+DEFINE FIELD IF NOT EXISTS description ON TABLE customer TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE customer TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE customer TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_customer_code ON TABLE customer FIELDS code UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_customer_normalized_name ON TABLE customer FIELDS normalized_name;
+DEFINE INDEX IF NOT EXISTS idx_customer_status ON TABLE customer FIELDS status;
+
+DEFINE TABLE IF NOT EXISTS project SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS code ON TABLE project TYPE string;
+DEFINE FIELD IF NOT EXISTS name ON TABLE project TYPE string;
+DEFINE FIELD IF NOT EXISTS normalized_name ON TABLE project TYPE string;
+DEFINE FIELD IF NOT EXISTS customer ON TABLE project TYPE record<customer>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE project TYPE string DEFAULT 'active' ASSERT $value IN ['active', 'closed', 'inactive'];
+DEFINE FIELD IF NOT EXISTS description ON TABLE project TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE project TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE project TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_project_code ON TABLE project FIELDS code UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_project_customer ON TABLE project FIELDS customer;
+DEFINE INDEX IF NOT EXISTS idx_project_customer_name ON TABLE project FIELDS customer, normalized_name UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_project_status ON TABLE project FIELDS status;
+
+DEFINE FIELD IF NOT EXISTS customer ON TABLE notebook TYPE option<record<customer>>;
+DEFINE FIELD IF NOT EXISTS project ON TABLE notebook TYPE option<record<project>>;
+DEFINE FIELD IF NOT EXISTS scope ON TABLE notebook TYPE option<string>;
+DEFINE INDEX IF NOT EXISTS idx_notebook_customer ON TABLE notebook FIELDS customer;
+DEFINE INDEX IF NOT EXISTS idx_notebook_project ON TABLE notebook FIELDS project;
+
+DEFINE TABLE IF NOT EXISTS folder SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS notebook ON TABLE folder TYPE record<notebook>;
+DEFINE FIELD IF NOT EXISTS parent ON TABLE folder TYPE option<record<folder>>;
+DEFINE FIELD IF NOT EXISTS name ON TABLE folder TYPE string;
+DEFINE FIELD IF NOT EXISTS normalized_name ON TABLE folder TYPE string;
+DEFINE FIELD IF NOT EXISTS description ON TABLE folder TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS sort_order ON TABLE folder TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS created ON TABLE folder TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE folder TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_folder_notebook ON TABLE folder FIELDS notebook;
+DEFINE INDEX IF NOT EXISTS idx_folder_parent ON TABLE folder FIELDS parent;
+DEFINE INDEX IF NOT EXISTS idx_folder_sibling_name ON TABLE folder FIELDS notebook, parent, normalized_name UNIQUE;
+
+DEFINE FIELD IF NOT EXISTS folder ON TABLE reference TYPE option<record<folder>>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE reference TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE reference TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_reference_source_notebook ON TABLE reference FIELDS in, out UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_reference_folder ON TABLE reference FIELDS folder;
+
+DEFINE TABLE IF NOT EXISTS dictionary_type SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS code ON TABLE dictionary_type TYPE string;
+DEFINE FIELD IF NOT EXISTS name ON TABLE dictionary_type TYPE string;
+DEFINE FIELD IF NOT EXISTS description ON TABLE dictionary_type TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS system ON TABLE dictionary_type TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS created ON TABLE dictionary_type TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE dictionary_type TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_dictionary_type_code ON TABLE dictionary_type FIELDS code UNIQUE;
+
+DEFINE TABLE IF NOT EXISTS dictionary_item SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS dictionary_type ON TABLE dictionary_item TYPE record<dictionary_type>;
+DEFINE FIELD IF NOT EXISTS code ON TABLE dictionary_item TYPE string;
+DEFINE FIELD IF NOT EXISTS name ON TABLE dictionary_item TYPE string;
+DEFINE FIELD IF NOT EXISTS normalized_name ON TABLE dictionary_item TYPE string;
+DEFINE FIELD IF NOT EXISTS description ON TABLE dictionary_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE dictionary_item TYPE string DEFAULT 'active' ASSERT $value IN ['active', 'inactive'];
+DEFINE FIELD IF NOT EXISTS sort_order ON TABLE dictionary_item TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS color ON TABLE dictionary_item TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE dictionary_item TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE dictionary_item TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_dictionary_item_type_code ON TABLE dictionary_item FIELDS dictionary_type, code UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_dictionary_item_type_name ON TABLE dictionary_item FIELDS dictionary_type, normalized_name UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_dictionary_item_type_status ON TABLE dictionary_item FIELDS dictionary_type, status;
+
+DEFINE TABLE IF NOT EXISTS source_profile SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS source ON TABLE source_profile TYPE record<source>;
+DEFINE FIELD IF NOT EXISTS module ON TABLE source_profile TYPE option<record<dictionary_item>>;
+DEFINE FIELD IF NOT EXISTS document_type ON TABLE source_profile TYPE option<record<dictionary_item>>;
+DEFINE FIELD IF NOT EXISTS business_version ON TABLE source_profile TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS status ON TABLE source_profile TYPE option<record<dictionary_item>>;
+DEFINE FIELD IF NOT EXISTS original_filename ON TABLE source_profile TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created ON TABLE source_profile TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE source_profile TYPE datetime DEFAULT time::now() VALUE time::now();
+DEFINE INDEX IF NOT EXISTS idx_source_profile_source ON TABLE source_profile FIELDS source UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_source_profile_module ON TABLE source_profile FIELDS module;
+DEFINE INDEX IF NOT EXISTS idx_source_profile_document_type ON TABLE source_profile FIELDS document_type;
+DEFINE INDEX IF NOT EXISTS idx_source_profile_status ON TABLE source_profile FIELDS status;
+DEFINE INDEX IF NOT EXISTS idx_source_profile_business_version ON TABLE source_profile FIELDS business_version;
+
+DEFINE TABLE IF NOT EXISTS source_tag TYPE RELATION FROM source TO dictionary_item SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS created ON TABLE source_tag TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE INDEX IF NOT EXISTS idx_source_tag_unique ON TABLE source_tag FIELDS in, out UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_source_tag_tag ON TABLE source_tag FIELDS out;
+
+DEFINE TABLE IF NOT EXISTS notebook_ln_version TYPE RELATION FROM notebook TO dictionary_item SCHEMAFULL;
+DEFINE FIELD IF NOT EXISTS created ON TABLE notebook_ln_version TYPE datetime DEFAULT time::now() VALUE $before OR time::now();
+DEFINE INDEX IF NOT EXISTS idx_notebook_ln_version_unique ON TABLE notebook_ln_version FIELDS in, out UNIQUE;
+DEFINE INDEX IF NOT EXISTS idx_notebook_ln_version_value ON TABLE notebook_ln_version FIELDS out;
+
+UPSERT dictionary_type:tag CONTENT { code: 'tag', name: '标签', description: '文件的多维内容标签', system: true };
+UPSERT dictionary_type:module CONTENT { code: 'module', name: 'LN 模块', description: 'Infor LN 产品或业务模块', system: true };
+UPSERT dictionary_type:document_type CONTENT { code: 'document_type', name: '文档类型', description: '需求、蓝图、产品设计、方案设计、技术设计、代码设计等', system: true };
+UPSERT dictionary_type:document_status CONTENT { code: 'document_status', name: '文档状态', description: '文档当前使用状态', system: true };
+UPSERT dictionary_type:ln_version CONTENT { code: 'ln_version', name: 'LN 版本', description: '知识库适用的 Infor LN 版本', system: true };
+
+UPDATE reference SET created = created OR time::now(), updated = updated OR time::now();
+
+DEFINE EVENT IF NOT EXISTS kbook_source_cleanup ON TABLE source WHEN ($after == NONE) THEN {
+    DELETE source_profile WHERE source = $before.id;
+    DELETE source_tag WHERE in = $before.id;
+};
+
+DEFINE EVENT IF NOT EXISTS kbook_notebook_cleanup ON TABLE notebook WHEN ($after == NONE) THEN {
+    DELETE folder WHERE notebook = $before.id;
+    DELETE notebook_ln_version WHERE in = $before.id;
+};

@@ -1,0 +1,27 @@
+-- Migration 16 rollback: remove K-Book first-phase file organization schema.
+-- Destructive. Intended for development and test environments only.
+
+REMOVE EVENT IF EXISTS kbook_source_cleanup ON TABLE source;
+REMOVE EVENT IF EXISTS kbook_notebook_cleanup ON TABLE notebook;
+
+REMOVE TABLE IF EXISTS notebook_ln_version;
+REMOVE TABLE IF EXISTS source_tag;
+REMOVE TABLE IF EXISTS source_profile;
+
+REMOVE INDEX IF EXISTS idx_reference_source_notebook ON TABLE reference;
+REMOVE INDEX IF EXISTS idx_reference_folder ON TABLE reference;
+REMOVE FIELD IF EXISTS folder ON TABLE reference;
+REMOVE FIELD IF EXISTS created ON TABLE reference;
+REMOVE FIELD IF EXISTS updated ON TABLE reference;
+
+REMOVE INDEX IF EXISTS idx_notebook_customer ON TABLE notebook;
+REMOVE INDEX IF EXISTS idx_notebook_project ON TABLE notebook;
+REMOVE FIELD IF EXISTS customer ON TABLE notebook;
+REMOVE FIELD IF EXISTS project ON TABLE notebook;
+REMOVE FIELD IF EXISTS scope ON TABLE notebook;
+
+REMOVE TABLE IF EXISTS folder;
+REMOVE TABLE IF EXISTS dictionary_item;
+REMOVE TABLE IF EXISTS dictionary_type;
+REMOVE TABLE IF EXISTS project;
+REMOVE TABLE IF EXISTS customer;

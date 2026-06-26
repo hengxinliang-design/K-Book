@@ -802,8 +802,8 @@ REMOVE TABLE IF EXISTS customer;
 
 ## 13. 迁移测试
 
-迁移候选结构已在 `SurrealDB 2.6.5` 上完成语法和约束验证。
-正式实现仍需使用最终的 `16.surrealql` 重新执行本节全部测试。
+迁移 16 正式文件已实现，并已在 `SurrealDB 2.6.5` 上按实际迁移执行器方式完成基础 Up 和 Down 验证。
+完整规模、兼容性和生产数据演练仍需在发布前重新执行本节全部测试。
 
 ### 13.1 Up Migration
 
